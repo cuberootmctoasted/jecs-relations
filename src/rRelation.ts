@@ -1,4 +1,4 @@
-import { Entity, Id, pair, Wildcard, world, World } from "@rbxts/jecs";
+import { Entity, Id, pair } from "@rbxts/jecs";
 import { w } from "./w";
 
 type Relation = Map<string, Entity>;
