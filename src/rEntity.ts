@@ -21,67 +21,72 @@ export class REntity<T = unknown> {
 		REntity.rEntities.push(this);
 	}
 
-	public spawn(state: T, ...strongs: Entity[]): void {
+	public contains(entityId: Entity): boolean {
+		return w.has(entityId, this.tag);
+	}
+
+	public spawn(state: T, ...strongs: Entity[]): Entity {
 		assert(this.strongREntities.size() === strongs.size());
 		strongs.forEach((owner) => {
 			assert(w.has(owner, REntity.isEntity));
 		});
-		const id = w.entity();
-		w.add(id, REntity.isEntity);
-		w.add(id, this.tag);
+		const entityId = w.entity();
+		w.add(entityId, REntity.isEntity);
+		w.add(entityId, this.tag);
 		strongs.forEach((strong) => {
-			w.add(id, pair(REntity.weakOf, strong));
-			w.add(strong, pair(REntity.strongOf, id));
+			w.add(entityId, pair(REntity.weakOf, strong));
+			w.add(strong, pair(REntity.strongOf, entityId));
 		});
-		w.set(id, this.component, state);
+		w.set(entityId, this.component, state);
+		return entityId;
 	}
 
-	public despawn(id: Entity): void {
-		assert(w.has(id, this.tag));
+	public despawn(entityId: Entity): void {
+		assert(w.has(entityId, this.tag));
 		RRelation.rRelations.forEach((rRelation) => {
-			rRelation.queryMentionsOf(id).forEach((id) => {
+			rRelation.queryMentionsOf(entityId).forEach((id) => {
 				rRelation.despawn(id);
 			});
 		});
 		REntity.rEntities.forEach((rEntity) => {
-			rEntity.queryWeakOf(id).forEach((weak) => {
+			rEntity.queryWeakOf(entityId).forEach((weak) => {
 				rEntity.despawn(weak);
 			});
 		});
-		w.delete(id);
+		w.delete(entityId);
 	}
 
-	public get(id: Entity): T {
-		assert(w.has(id, this.tag));
-		return w.get(id, this.tag) as T;
+	public get(entityId: Entity): T {
+		assert(w.has(entityId, this.tag));
+		return w.get(entityId, this.tag) as T;
 	}
 
-	public set(id: Entity, newState: T) {
-		assert(w.has(id, this.tag));
-		w.set(id, this.tag, newState);
+	public set(entityId: Entity, state: T) {
+		assert(w.has(entityId, this.tag));
+		w.set(entityId, this.tag, state);
 	}
 
 	public query(): Entity[] {
-		const ids: Entity[] = [];
-		for (const [id] of w.query(this.tag)) {
-			ids.push(id);
+		const entityIds: Entity[] = [];
+		for (const [entityId] of w.query(this.tag)) {
+			entityIds.push(entityId);
 		}
-		return ids;
+		return entityIds;
 	}
 
 	public queryStrongOf(weak: Entity): Entity[] {
-		const ids: Entity[] = [];
-		for (const [id] of w.query(pair(REntity.strongOf, weak))) {
-			ids.push(id);
+		const entityIds: Entity[] = [];
+		for (const [entityId] of w.query(pair(REntity.strongOf, weak))) {
+			entityIds.push(entityId);
 		}
-		return ids;
+		return entityIds;
 	}
 
 	public queryWeakOf(strong: Entity): Entity[] {
-		const ids: Entity[] = [];
-		for (const [id] of w.query(pair(REntity.weakOf, strong))) {
-			ids.push(id);
+		const entityIds: Entity[] = [];
+		for (const [entityId] of w.query(pair(REntity.weakOf, strong))) {
+			entityIds.push(entityId);
 		}
-		return ids;
+		return entityIds;
 	}
 }

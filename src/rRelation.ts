@@ -1,5 +1,6 @@
 import { Entity, Id, pair } from "@rbxts/jecs";
 import { w } from "./w";
+import { REntity } from "./rEntity";
 
 type Relation = Map<string, Entity>;
 
@@ -10,46 +11,54 @@ export class RRelation {
 
 	private tag: Entity;
 	private fieldTags: Map<string, Entity> = new Map();
+	private fieldREntities: Map<string, REntity> = new Map();
 
-	constructor(...fields: string[]) {
+	constructor(fieldREntities: Map<string, REntity>) {
 		this.tag = w.component();
-		fields.forEach((field) => {
+		this.fieldREntities = fieldREntities;
+		fieldREntities.forEach((_, field) => {
 			this.fieldTags.set(field, w.component());
 		});
 		RRelation.rRelations.push(this);
 	}
 
-	public spawn(relation: Relation): void {
+	public contains(relationId: Entity): boolean {
+		return w.has(relationId, this.tag);
+	}
+
+	public spawn(relation: Relation): Entity {
 		relation.forEach((target, field) => {
-			assert(!w.has(target, RRelation.isRelation));
 			assert(this.fieldTags.has(field));
+			assert(!w.has(target, RRelation.isRelation));
+			assert(this.fieldREntities.get(field)!.contains(target));
 		});
 		this.fieldTags.forEach((_, field) => {
 			assert(relation.has(field));
 		});
-		const id = w.entity();
-		w.add(id, RRelation.isRelation);
-		w.add(id, this.tag);
+		const relationId = w.entity();
+		w.add(relationId, RRelation.isRelation);
+		w.add(relationId, this.tag);
 		relation.forEach((target, field) => {
 			const fieldTag = this.fieldTags.get(field)!;
-			w.add(id, pair(fieldTag, target));
+			w.add(relationId, pair(fieldTag, target));
 		});
+		return relationId;
 	}
 
-	public despawn(id: Entity): void {
-		assert(w.has(id, this.tag));
-		w.delete(id);
+	public despawn(relationId: Entity): void {
+		assert(this.contains(relationId));
+		w.delete(relationId);
 	}
 
-	public get(id: Entity): Relation {
-		assert(w.has(id, this.tag));
+	public get(relationId: Entity): Relation {
+		assert(this.contains(relationId));
 		const relation: Relation = new Map();
 		this.fieldTags.forEach((fieldTag) => {
-			assert(w.target(id, fieldTag, 0) !== undefined);
-			assert(w.target(id, fieldTag, 1) === undefined);
+			assert(w.target(relationId, fieldTag, 0) !== undefined);
+			assert(w.target(relationId, fieldTag, 1) === undefined);
 		});
 		this.fieldTags.forEach((fieldTag, field) => {
-			relation.set(field, w.target(id, fieldTag)!);
+			relation.set(field, w.target(relationId, fieldTag)!);
 		});
 		return relation;
 	}
@@ -63,20 +72,20 @@ export class RRelation {
 			const fieldTag = this.fieldTags.get(field)!;
 			jecsQuery.push(pair(fieldTag, target));
 		});
-		const ids: Entity[] = [];
-		for (const [id] of w.query(...jecsQuery)) {
-			ids.push(id);
+		const relationIds: Entity[] = [];
+		for (const [relationId] of w.query(...jecsQuery)) {
+			relationIds.push(relationId);
 		}
-		return ids;
+		return relationIds;
 	}
 
-	public queryMentionsOf(entity: Entity): Entity[] {
-		const ids: Entity[] = [];
+	public queryMentionsOf(entityId: Entity): Entity[] {
+		const relationIds: Entity[] = [];
 		this.fieldTags.forEach((fieldTag) => {
-			for (const [id] of w.query(pair(fieldTag, entity))) {
-				ids.push(id);
+			for (const [relationId] of w.query(pair(fieldTag, entityId))) {
+				relationIds.push(relationId);
 			}
 		});
-		return ids;
+		return relationIds;
 	}
 }
